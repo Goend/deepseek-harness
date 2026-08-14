@@ -21,7 +21,13 @@
       "path": "../ui-conversation"
     },
     {
+      "path": "../ui-settings"
+    },
+    {
       "path": "../locale"
+    },
+    {
+      "path": "../../settings/settings"
     },
     {
       "path": "../../runtime-diagnostics/invariants"

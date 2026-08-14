@@ -30,3 +30,42 @@
   color: var(--dsw-color-text-muted, #666);
   font-size: 13px;
 }
+
+.members {
+  color: var(--dsw-color-text-muted, #666);
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.input {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--dsw-color-border, #ccc);
+  border-radius: 4px;
+}
+
+.button {
+  font: inherit;
+  padding: 4px 12px;
+  border: 1px solid var(--dsw-color-border, #ccc);
+  border-radius: 4px;
+  background: var(--dsw-color-bg, #fff);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.message {
+  font-size: 13px;
+  margin: 8px 0 0;
+}

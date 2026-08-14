@@ -3,6 +3,7 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
+import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-foreman/client'
 import type { OrgChartInjected, OrgData } from '@deepseek-ai/dsh-client-ui-foreman/client'
 
@@ -10,6 +11,7 @@ async function bench() {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   ctx.provide('locale', new LocaleRuntime(ctx))
+  ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
   const slots = ctx.get('slots') as SlotRegistry
   // ui-conversation's body entry declares this ring; the test stands in for it.
   slots.register({
@@ -22,8 +24,8 @@ async function bench() {
 }
 
 describe('ui-foreman apply', () => {
-  it('declares only slots + locale', () => {
-    expect(inject).toEqual(['slots', 'locale'])
+  it('declares only slots + locale + settingsScope', () => {
+    expect(inject).toEqual(['slots', 'locale', 'settingsScope'])
   })
 
   it('registers the foreman view tab with an injected data face', async () => {

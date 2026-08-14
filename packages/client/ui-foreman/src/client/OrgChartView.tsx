@@ -1,4 +1,4 @@
-/** Foreman org-chart view: renders the org tree from the injected data source. */
+/** Foreman org-chart view: renders the org tree, members, and a dispatch form. */
 
 import { useEffect, useState } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -9,9 +9,28 @@ import css from './OrgChartView.module.css'
 
 const EMPTY_ORG: OrgData = { nodes: [], memberships: [] }
 
-/** One org-tree node rendered with its indented children. */
-function OrgTreeNode({ node, tree, depth }: { node: OrgNodeData; tree: Map<string | null, OrgNodeData[]>; depth: number }) {
+/** User ids grouped by node id. */
+function membersByNode(org: OrgData): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  for (const m of org.memberships) {
+    const list = map.get(m.nodeId) ?? []
+    list.push(m.userId)
+    map.set(m.nodeId, list)
+  }
+  return map
+}
+
+/** One org-tree node rendered with its members and indented children. */
+function OrgTreeNode({
+  node, tree, members, depth,
+}: {
+  node: OrgNodeData
+  tree: Map<string | null, OrgNodeData[]>
+  members: Map<string, string[]>
+  depth: number
+}) {
   const children = tree.get(node.id) ?? []
+  const nodeMembers = members.get(node.id) ?? []
   return (
     <div>
       <div className={css.node} style={{ paddingLeft: depth * 16 }}>
@@ -19,17 +38,26 @@ function OrgTreeNode({ node, tree, depth }: { node: OrgNodeData; tree: Map<strin
         {node.leaderId ? <span className={css.leader}>leader: {node.leaderId}</span> : null}
         {node.domain ? <span className={css.domain}>— {node.domain}</span> : null}
       </div>
+      {nodeMembers.length > 0 ? (
+        <div className={css.members} style={{ paddingLeft: depth * 16 + 16 }}>
+          成员: {nodeMembers.join(', ')}
+        </div>
+      ) : null}
       {children.map(child => (
-        <OrgTreeNode key={child.id} node={child} tree={tree} depth={depth + 1} />
+        <OrgTreeNode key={child.id} node={child} tree={tree} members={members} depth={depth + 1} />
       ))}
     </div>
   )
 }
 
 /** The org-chart view tab body. */
-export function OrgChartView({ foremanUrl, listOrg }: ConvViewProps & InjectFace<OrgChartInjected> & PropsLocale<'foreman'>) {
+export function OrgChartView({ foremanUrl, listOrg, assignTask }: ConvViewProps & InjectFace<OrgChartInjected> & PropsLocale<'foreman'>) {
   const [org, setOrg] = useState<OrgData>(EMPTY_ORG)
   const [loading, setLoading] = useState(true)
+  const [taskId, setTaskId] = useState('')
+  const [description, setDescription] = useState('')
+  const [assignee, setAssignee] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -42,6 +70,21 @@ export function OrgChartView({ foremanUrl, listOrg }: ConvViewProps & InjectFace
   }, [listOrg])
 
   const tree = buildOrgTree(org.nodes)
+  const members = membersByNode(org)
+  const allMembers = [...new Set(org.memberships.map(m => m.userId))]
+
+  async function handleAssign(): Promise<void> {
+    if (!taskId || !description || !assignee) return
+    setMessage('')
+    try {
+      await assignTask({ id: taskId, description, changeIntent: 'additive', assignee })
+      setMessage(`已下发 ${taskId}`)
+      setTaskId('')
+      setDescription('')
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e))
+    }
+  }
 
   return (
     <div className={css.root}>
@@ -51,9 +94,40 @@ export function OrgChartView({ foremanUrl, listOrg }: ConvViewProps & InjectFace
       ) : org.nodes.length === 0 ? (
         <p className={css.empty}>未连接到 Foreman 服务端（{foremanUrl}）</p>
       ) : (
-        rootNodes(org.nodes).map(node => (
-          <OrgTreeNode key={node.id} node={node} tree={tree} depth={0} />
-        ))
+        <>
+          {rootNodes(org.nodes).map(node => (
+            <OrgTreeNode key={node.id} node={node} tree={tree} members={members} depth={0} />
+          ))}
+          <form
+            className={css.form}
+            onSubmit={(e) => { e.preventDefault(); void handleAssign() }}
+          >
+            <input
+              className={css.input}
+              value={taskId}
+              placeholder="任务 id"
+              onChange={e => setTaskId(e.target.value)}
+            />
+            <input
+              className={css.input}
+              value={description}
+              placeholder="任务描述"
+              onChange={e => setDescription(e.target.value)}
+            />
+            <select
+              className={css.input}
+              value={assignee}
+              onChange={e => setAssignee(e.target.value)}
+            >
+              <option value="">选择成员</option>
+              {allMembers.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <button type="submit" className={css.button} disabled={!taskId || !description || !assignee}>
+              下发任务
+            </button>
+          </form>
+          {message ? <p className={css.message}>{message}</p> : null}
+        </>
       )}
     </div>
   )
