@@ -1,0 +1,32 @@
+.root {
+  padding: 16px;
+  font-family: var(--dsw-font-family, inherit);
+}
+
+.heading {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.node {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.leader {
+  color: var(--dsw-color-text-muted, #666);
+  font-size: 12px;
+}
+
+.domain {
+  color: var(--dsw-color-text-muted, #666);
+  font-size: 12px;
+}
+
+.empty {
+  color: var(--dsw-color-text-muted, #666);
+  font-size: 13px;
+}

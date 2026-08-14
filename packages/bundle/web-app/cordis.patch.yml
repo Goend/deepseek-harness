@@ -273,6 +273,9 @@
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
 
+    - id: ui-foreman
+      name: '@deepseek-ai/dsh-client-ui-foreman'
+
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
 # Every row below composes what ONE agent contributes to the host registries:
