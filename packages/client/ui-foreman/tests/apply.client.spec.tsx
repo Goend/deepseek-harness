@@ -15,7 +15,7 @@ async function bench() {
   slots.register({
     name: 'root',
     children: { 'conversation.view': { kind: 'list', scope: 'session' } },
-  }, () => null)
+  } as never, () => null)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
   return { slots, fiber }
@@ -33,7 +33,7 @@ describe('ui-foreman apply', () => {
     expect(entries[0]!.options.id).toBe('foreman')
     const label = entries[0]!.options.label as () => string
     expect(label()).toBe('组织架构')
-    const injected = (entries[0]!.inject as () => OrgChartInjected)()
+    const injected = (entries[0]!.inject as unknown as () => OrgChartInjected)()
     expect(injected.foremanUrl).toBe('http://127.0.0.1:8787/rpc')
     expect(typeof injected.listOrg).toBe('function')
     fiber.dispose()
@@ -41,7 +41,7 @@ describe('ui-foreman apply', () => {
 
   it('listOrg fetches the org tree and falls back to an empty org', async () => {
     const { slots, fiber } = await bench()
-    const injected = (slots.entries('conversation.view')[0]!.inject as () => OrgChartInjected)()
+    const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
     const org: OrgData = { nodes: [], memberships: [] }
 
     const ok = vi.fn().mockResolvedValue({ json: async () => ({ result: org }) })
