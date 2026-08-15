@@ -9,6 +9,11 @@ import css from './OrgChartView.module.css'
 
 const EMPTY_ORG: OrgData = { nodes: [], memberships: [] }
 
+/** Render any thrown value as a human-readable message. */
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 /** User ids grouped by node id. */
 function membersByNode(org: OrgData): Map<string, string[]> {
   const map = new Map<string, string[]>()
@@ -60,19 +65,21 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
   const [configOpen, setConfigOpen] = useState(false)
   const [urlInput, setUrlInput] = useState(initial.url)
   const [tokenInput, setTokenInput] = useState(initial.token)
-  const [taskId, setTaskId] = useState('')
   const [description, setDescription] = useState('')
   const [assignee, setAssignee] = useState('')
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
   const [nodeTasks, setNodeTasks] = useState<TaskSummary[]>([])
 
   async function reload(): Promise<void> {
     setLoading(true)
+    setLoadError(null)
     try {
       setOrg(await listOrg())
-    } catch {
+    } catch (e) {
       setOrg(EMPTY_ORG)
+      setLoadError(errorText(e))
     } finally {
       setLoading(false)
     }
@@ -81,9 +88,10 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
   useEffect(() => {
     let alive = true
     setLoading(true)
+    setLoadError(null)
     void listOrg()
       .then((data) => { if (alive) setOrg(data) })
-      .catch(() => { if (alive) setOrg(EMPTY_ORG) })
+      .catch((e: unknown) => { if (alive) { setOrg(EMPTY_ORG); setLoadError(errorText(e)) } })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [listOrg])
@@ -99,7 +107,7 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
       setConfigOpen(false)
       await reload()
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e))
+      setMessage(errorText(e))
     }
   }
 
@@ -110,7 +118,7 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
       setNodeTasks(await listNodeTasks(nodeId))
     } catch (e) {
       setNodeTasks([])
-      setMessage(e instanceof Error ? e.message : String(e))
+      setMessage(errorText(e))
     }
   }
 
@@ -121,21 +129,20 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
       /* v8 ignore next -- the task panel only renders when selectedNode is set */
       if (selectedNode) setNodeTasks(await listNodeTasks(selectedNode))
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e))
+      setMessage(errorText(e))
     }
   }
 
   async function handleAssign(): Promise<void> {
-    /* v8 ignore next -- the submit button is disabled until all fields are set */
-    if (!taskId || !description || !assignee) return
+    /* v8 ignore next -- the submit button is disabled until a description is set */
+    if (!description) return
     setMessage('')
     try {
-      await assignTask({ id: taskId, description, changeIntent: 'additive', assignee })
-      setMessage(`已下发 ${taskId}`)
-      setTaskId('')
+      await assignTask({ description, changeIntent: 'additive', ...(assignee ? { assignee } : {}) })
+      setMessage('已下发任务')
       setDescription('')
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e))
+      setMessage(errorText(e))
     }
   }
 
@@ -172,7 +179,11 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
       {loading ? (
         <p className={css.empty}>加载中…</p>
       ) : org.nodes.length === 0 ? (
-        <p className={css.empty}>未连接到 Foreman 服务端，请点「连接配置」设置服务器地址</p>
+        <p className={css.empty}>
+          {loadError
+            ? `未连接到 Foreman 服务端：${loadError}，请点「连接配置」检查服务器地址和 token`
+            : '未连接到 Foreman 服务端，请点「连接配置」设置服务器地址'}
+        </p>
       ) : (
         <>
           {rootNodes(org.nodes).map(node => (
@@ -201,12 +212,6 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
           >
             <input
               className={css.input}
-              value={taskId}
-              placeholder="任务 id"
-              onChange={e => setTaskId(e.target.value)}
-            />
-            <input
-              className={css.input}
               value={description}
               placeholder="任务描述"
               onChange={e => setDescription(e.target.value)}
@@ -216,10 +221,10 @@ export function OrgChartView({ getConnection, saveConnection, listOrg, assignTas
               value={assignee}
               onChange={e => setAssignee(e.target.value)}
             >
-              <option value="">选择成员</option>
+              <option value="">（给自己）</option>
               {allMembers.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            <button type="submit" className={css.button} disabled={!taskId || !description || !assignee}>
+            <button type="submit" className={css.button} disabled={!description}>
               下发任务
             </button>
           </form>

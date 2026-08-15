@@ -48,19 +48,33 @@ describe('OrgChartView', () => {
 
   it('shows an empty state when the server is unreachable', async () => {
     render(<OrgChartView {...props({ listOrg: async () => { throw new Error('offline') } })} />)
-    expect(await screen.findByText(/未连接到 Foreman 服务端/)).toBeTruthy()
+    expect(await screen.findByText(/未连接到 Foreman 服务端：offline/)).toBeTruthy()
+  })
+
+  it('shows the empty state without an error when the org is empty', async () => {
+    render(<OrgChartView {...props({ listOrg: async () => ({ nodes: [], memberships: [] }) })} />)
+    expect(await screen.findByText(/请点「连接配置」设置服务器地址/)).toBeTruthy()
   })
 
   it('dispatches a task through assignTask', async () => {
     const assignTask = vi.fn().mockResolvedValue(undefined)
     render(<OrgChartView {...props({ assignTask })} />)
     await screen.findByText('company')
-    fireEvent.change(screen.getByPlaceholderText('任务 id'), { target: { value: 'task-1' } })
     fireEvent.change(screen.getByPlaceholderText('任务描述'), { target: { value: 'add auth' } })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bob' } })
     fireEvent.click(screen.getByRole('button', { name: '下发任务' }))
-    expect(await screen.findByText(/已下发 task-1/)).toBeTruthy()
-    expect(assignTask).toHaveBeenCalledWith({ id: 'task-1', description: 'add auth', changeIntent: 'additive', assignee: 'bob' })
+    expect(await screen.findByText('已下发任务')).toBeTruthy()
+    expect(assignTask).toHaveBeenCalledWith({ description: 'add auth', changeIntent: 'additive', assignee: 'bob' })
+  })
+
+  it('dispatches a self-assigned task when no member is chosen', async () => {
+    const assignTask = vi.fn().mockResolvedValue(undefined)
+    render(<OrgChartView {...props({ assignTask })} />)
+    await screen.findByText('company')
+    fireEvent.change(screen.getByPlaceholderText('任务描述'), { target: { value: 'extend myself' } })
+    fireEvent.click(screen.getByRole('button', { name: '下发任务' }))
+    expect(await screen.findByText('已下发任务')).toBeTruthy()
+    expect(assignTask).toHaveBeenCalledWith({ description: 'extend myself', changeIntent: 'additive', assignee: undefined })
   })
 
   it('lists node tasks and rejects one', async () => {
@@ -120,21 +134,20 @@ describe('OrgChartView', () => {
     const assignTask = vi.fn().mockRejectedValue(new Error('assign-fail'))
     render(<OrgChartView {...props({ assignTask })} />)
     await screen.findByText('company')
-    fireEvent.change(screen.getByPlaceholderText('任务 id'), { target: { value: 'task-1' } })
     fireEvent.change(screen.getByPlaceholderText('任务描述'), { target: { value: 'x' } })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bob' } })
     fireEvent.click(screen.getByRole('button', { name: '下发任务' }))
     expect(await screen.findByText(/assign-fail/)).toBeTruthy()
   })
 
-  it('keeps the empty state when reload after save fails', async () => {
+  it('keeps the empty state and exposes the reason when reload after save fails', async () => {
     const saveConnection = vi.fn().mockResolvedValue(undefined)
     const listOrg = vi.fn().mockRejectedValue(new Error('offline'))
     render(<OrgChartView {...props({ saveConnection, listOrg })} />)
     await screen.findByText(/未连接/)
     fireEvent.click(screen.getByRole('button', { name: '连接配置' }))
     fireEvent.click(screen.getByRole('button', { name: '保存并连接' }))
-    await waitFor(() => expect(screen.getByText(/未连接/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/未连接到 Foreman 服务端：offline/)).toBeTruthy())
   })
 
   it('shows a non-Error message when saving throws a string', async () => {
@@ -169,7 +182,6 @@ describe('OrgChartView', () => {
     const assignTask = vi.fn().mockRejectedValue('oops')
     render(<OrgChartView {...props({ assignTask })} />)
     await screen.findByText('company')
-    fireEvent.change(screen.getByPlaceholderText('任务 id'), { target: { value: 'task-1' } })
     fireEvent.change(screen.getByPlaceholderText('任务描述'), { target: { value: 'x' } })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'bob' } })
     fireEvent.click(screen.getByRole('button', { name: '下发任务' }))

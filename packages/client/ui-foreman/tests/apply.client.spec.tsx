@@ -5,13 +5,14 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-foreman/client'
-import type { OrgChartInjected, OrgData } from '@deepseek-ai/dsh-client-ui-foreman/client'
+import type { ForemanSettings, OrgChartInjected, OrgData } from '@deepseek-ai/dsh-client-ui-foreman/client'
 
 async function bench() {
   const ctx = new Context()
   await ctx.plugin(SlotRegistry).await()
   ctx.provide('locale', new LocaleRuntime(ctx))
-  ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+  const settings = stubSettingsScope<ForemanSettings>()
+  ctx.provide('settingsScope', { bind: () => settings.scope } as never)
   const slots = ctx.get('slots') as SlotRegistry
   // ui-conversation's body entry declares this ring; the test stands in for it.
   slots.register({
@@ -20,7 +21,7 @@ async function bench() {
   } as never, () => null)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { slots, fiber }
+  return { slots, settings, fiber }
 }
 
 describe('ui-foreman apply', () => {
@@ -42,6 +43,32 @@ describe('ui-foreman apply', () => {
     fiber.dispose()
   })
 
+  it('saveConnection completes a scheme-less address and listOrg reuses it immediately', async () => {
+    const { slots, settings, fiber } = await bench()
+    settings.publish({
+      status: 'ready',
+      value: { foremanUrl: 'http://127.0.0.1:8787/rpc', token: '' },
+      revision: 1,
+      writable: true,
+    })
+    const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ result: { nodes: [], memberships: [] } }) })
+    globalThis.fetch = fetchMock as never
+
+    await injected.saveConnection('192.3.39.195:8787/rpc', '476ff072')
+    expect(settings.set).toHaveBeenCalledWith('foremanUrl', 'http://192.3.39.195:8787/rpc')
+    expect(settings.set).toHaveBeenCalledWith('token', '476ff072')
+    expect(injected.getConnection()).toEqual({ url: 'http://192.3.39.195:8787/rpc', token: '476ff072' })
+
+    await injected.listOrg()
+    expect(fetchMock).toHaveBeenCalledWith('http://192.3.39.195:8787/rpc', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer 476ff072' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'list_org' }),
+    })
+    await fiber.dispose()
+  })
+
   it('listOrg fetches the org tree and falls back to an empty org', async () => {
     const { slots, fiber } = await bench()
     const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
@@ -55,6 +82,50 @@ describe('ui-foreman apply', () => {
     globalThis.fetch = missing as never
     expect(await injected.listOrg()).toEqual({ nodes: [], memberships: [] })
     fiber.dispose()
+  })
+
+  it('dispatches, lists node tasks, and rejects through the injected face', async () => {
+    const { slots, settings, fiber } = await bench()
+    settings.publish({ status: 'ready', value: { foremanUrl: 'http://x/rpc', token: 'tok' }, revision: 1, writable: true })
+    const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ result: [] }) })
+    globalThis.fetch = fetchMock as never
+
+    await injected.assignTask({ description: 'x', changeIntent: 'additive', assignee: 'bob' })
+    await injected.listNodeTasks('frontend')
+    await injected.rejectTask('task-1')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const bodies = fetchMock.mock.calls.map(c => JSON.parse(c[1]!.body as string).method)
+    expect(bodies).toEqual(['assign_task', 'list_node_tasks', 'reject_task'])
+    await fiber.dispose()
+  })
+
+  it('falls back to the default URL when the saved address is invalid', async () => {
+    const { slots, settings, fiber } = await bench()
+    settings.publish({ status: 'ready', value: { foremanUrl: 'not a url with spaces', token: '' }, revision: 1, writable: true })
+    const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
+    expect(injected.getConnection().url).toBe('http://127.0.0.1:8787/rpc')
+    await fiber.dispose()
+  })
+
+  it('throws when the server returns a JSON-RPC error', async () => {
+    const { slots, settings, fiber } = await bench()
+    settings.publish({ status: 'ready', value: { foremanUrl: 'http://x/rpc', token: '' }, revision: 1, writable: true })
+    const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({ error: { message: 'boom' } }) })
+    globalThis.fetch = fetchMock as never
+    await expect(injected.listOrg()).rejects.toThrow('boom')
+    await fiber.dispose()
+  })
+
+  it('listNodeTasks falls back to empty when the server returns no result', async () => {
+    const { slots, settings, fiber } = await bench()
+    settings.publish({ status: 'ready', value: { foremanUrl: 'http://x/rpc', token: '' }, revision: 1, writable: true })
+    const injected = (slots.entries('conversation.view')[0]!.inject as unknown as () => OrgChartInjected)()
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => ({}) })
+    globalThis.fetch = fetchMock as never
+    expect(await injected.listNodeTasks('frontend')).toEqual([])
+    await fiber.dispose()
   })
 })
 

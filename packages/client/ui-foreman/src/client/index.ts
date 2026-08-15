@@ -11,7 +11,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: the ctx.settingsScope Context merge (declared by ui-settings).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { FOREMAN_SETTINGS_NAMESPACE, type ForemanSettings } from '../foreman-settings.ts'
+import { FOREMAN_SETTINGS_NAMESPACE, normalizeForemanUrl, type ForemanSettings } from '../foreman-settings.ts'
 import { en, NS, zh } from './locales.ts'
 import { OrgChartView } from './OrgChartView.tsx'
 
@@ -32,10 +32,10 @@ export interface OrgData {
 
 /** A task dispatch issued from the panel. */
 export interface AssignTaskInput {
-  readonly id: string
   readonly description: string
   readonly changeIntent: 'additive' | 'contract' | 'rewrite'
-  readonly assignee: string
+  /** Omit to assign to the caller (self-assignment). */
+  readonly assignee?: string
 }
 
 /** The current Foreman connection (server URL + auth token). */
@@ -104,15 +104,25 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     label: () => t('view.foreman'),
     inject: (_sessionId: SessionId): OrgChartInjected => {
+      let savedConnection: ForemanConnection | undefined
       const readConnection = (): ForemanConnection => {
+        if (savedConnection !== undefined) return savedConnection
         const { foremanUrl = DEFAULT_URL, token = '' } = settings.getSnapshot().value ?? {}
-        return { url: foremanUrl, token }
+        let url = DEFAULT_URL
+        try {
+          url = normalizeForemanUrl(foremanUrl)
+        } catch {
+          url = DEFAULT_URL
+        }
+        return { url, token }
       }
       return {
         getConnection: readConnection,
         saveConnection: async (url, token) => {
-          await settings.set('foremanUrl', url)
-          await settings.set('token', token)
+          const connection = { url: normalizeForemanUrl(url), token }
+          await settings.set('foremanUrl', connection.url)
+          await settings.set('token', connection.token)
+          savedConnection = connection
         },
         listOrg: async () => {
           const { url, token } = readConnection()
