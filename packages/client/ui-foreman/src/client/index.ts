@@ -38,14 +38,34 @@ export interface AssignTaskInput {
   readonly assignee: string
 }
 
+/** The current Foreman connection (server URL + auth token). */
+export interface ForemanConnection {
+  readonly url: string
+  readonly token: string
+}
+
+/** A task summary shown in the node task list. */
+export interface TaskSummary {
+  readonly id: string
+  readonly description: string
+  readonly state: string
+  readonly assignee: string | null
+}
+
 /** Business face injected into the org-chart view component. */
 export interface OrgChartInjected {
-  /** Foreman JSON-RPC server URL. */
-  readonly foremanUrl: string
+  /** Read the current Foreman connection. */
+  readonly getConnection: () => ForemanConnection
+  /** Persist a Foreman connection (front-end configuration). */
+  readonly saveConnection: (url: string, token: string) => Promise<void>
   /** Fetch the org tree from the Foreman server. */
   readonly listOrg: () => Promise<OrgData>
   /** Dispatch a task to a member. */
   readonly assignTask: (input: AssignTaskInput) => Promise<void>
+  /** List tasks of a node's subtree (leader view). */
+  readonly listNodeTasks: (nodeId: string) => Promise<TaskSummary[]>
+  /** Reject (fail) a task. */
+  readonly rejectTask: (taskId: string) => Promise<void>
 }
 
 /** Required services: the conversation view slot, the locale service, and settings. */
@@ -84,15 +104,33 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     label: () => t('view.foreman'),
     inject: (_sessionId: SessionId): OrgChartInjected => {
-      const { foremanUrl = DEFAULT_URL, token = '' } = settings.getSnapshot().value ?? {}
+      const readConnection = (): ForemanConnection => {
+        const { foremanUrl = DEFAULT_URL, token = '' } = settings.getSnapshot().value ?? {}
+        return { url: foremanUrl, token }
+      }
       return {
-        foremanUrl,
+        getConnection: readConnection,
+        saveConnection: async (url, token) => {
+          await settings.set('foremanUrl', url)
+          await settings.set('token', token)
+        },
         listOrg: async () => {
-          const result = await rpc(foremanUrl, token, 'list_org') as OrgData | undefined
+          const { url, token } = readConnection()
+          const result = await rpc(url, token, 'list_org') as OrgData | undefined
           return result ?? { nodes: [], memberships: [] }
         },
         assignTask: async (input) => {
-          await rpc(foremanUrl, token, 'assign_task', { token, ...input })
+          const { url, token } = readConnection()
+          await rpc(url, token, 'assign_task', { token, ...input })
+        },
+        listNodeTasks: async (nodeId) => {
+          const { url, token } = readConnection()
+          const result = await rpc(url, token, 'list_node_tasks', { token, nodeId }) as TaskSummary[] | undefined
+          return result ?? []
+        },
+        rejectTask: async (taskId) => {
+          const { url, token } = readConnection()
+          await rpc(url, token, 'reject_task', { token, taskId })
         },
       }
     },

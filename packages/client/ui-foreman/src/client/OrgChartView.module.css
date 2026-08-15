@@ -9,6 +9,13 @@
   margin: 0 0 8px;
 }
 
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
 .node {
   display: flex;
   align-items: baseline;
@@ -63,6 +70,37 @@
 .button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.smallButton {
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 8px;
+  border: 1px solid var(--dsw-color-border, #ccc);
+  border-radius: 3px;
+  background: var(--dsw-color-bg, #fff);
+  cursor: pointer;
+}
+
+.taskPanel {
+  margin-top: 12px;
+  padding: 8px;
+  border: 1px solid var(--dsw-color-border, #ccc);
+  border-radius: 4px;
+}
+
+.taskHeading {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.taskRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 13px;
 }
 
 .message {

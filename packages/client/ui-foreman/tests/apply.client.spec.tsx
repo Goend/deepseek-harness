@@ -36,8 +36,9 @@ describe('ui-foreman apply', () => {
     const label = entries[0]!.options.label as () => string
     expect(label()).toBe('组织架构')
     const injected = (entries[0]!.inject as unknown as () => OrgChartInjected)()
-    expect(injected.foremanUrl).toBe('http://127.0.0.1:8787/rpc')
+    expect(injected.getConnection().url).toBe('http://127.0.0.1:8787/rpc')
     expect(typeof injected.listOrg).toBe('function')
+    expect(typeof injected.saveConnection).toBe('function')
     fiber.dispose()
   })
 

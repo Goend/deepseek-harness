@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-Foreman 组织面板：一个贡献到会话视图环的组织架构图视图标签页。它通过注入的回调从 Foreman JSON-RPC 服务端渲染组织树和成员列表；该面板是纯消费者，不定义任何 host 侧服务。
+Foreman 组织面板：一个贡献到会话视图环的组织架构图视图标签页。它渲染组织树、各节点成员和下发表单，并让用户在面板内配置 Foreman 服务端连接。数据通过注入的回调从 Foreman JSON-RPC 服务端流转；该面板是纯消费者，不定义任何 host 侧服务。
 
 ## Model Experience
 
@@ -22,5 +22,5 @@ Foreman 组织面板：一个贡献到会话视图环的组织架构图视图标
 
 ## Known Limitations and Deferred Work
 
-- **Foreman 服务端 URL 和 token 是硬编码占位** — 视图标签页当前使用 `http://127.0.0.1:8787/rpc` 且尚无认证 token；一旦 Foreman 服务端可被浏览器访问，两者应移入 settings 命名空间或凭据引用。
-- **组织架构图渲染了树但省略了成员列表和下发动作** — 节点树、leader 和域标签已渲染；各节点成员和任务下发已延后。
+- **认证 token 存储在 settings 文档中** — 面板通过 `foreman` settings 命名空间持久化服务端 URL 和 token；token 是 `role('secret')`（从不被 `describe` 渲染），但将其移入 credentials 引用可彻底不落 settings 文件。
+- **leader 权限未在 UI 中按节点区分** — 任务查看/驳回控件在每个节点都渲染；服务端强制 leader 检查，UI 显示返回的错误而非隐藏该动作。

@@ -1,10 +1,10 @@
-/** Foreman org-chart view: renders the org tree, members, and a dispatch form. */
+/** Foreman org-chart view: connection config, org tree, members, tasks, dispatch. */
 
 import { useEffect, useState } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { InjectFace, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import { buildOrgTree, rootNodes } from './org-tree.ts'
-import type { OrgChartInjected, OrgData, OrgNodeData } from './index.ts'
+import type { OrgChartInjected, OrgData, OrgNodeData, TaskSummary } from './index.ts'
 import css from './OrgChartView.module.css'
 
 const EMPTY_ORG: OrgData = { nodes: [], memberships: [] }
@@ -20,14 +20,15 @@ function membersByNode(org: OrgData): Map<string, string[]> {
   return map
 }
 
-/** One org-tree node rendered with its members and indented children. */
+/** One org-tree node rendered with its members, tasks button, and indented children. */
 function OrgTreeNode({
-  node, tree, members, depth,
+  node, tree, members, depth, onViewTasks,
 }: {
   node: OrgNodeData
   tree: Map<string | null, OrgNodeData[]>
   members: Map<string, string[]>
   depth: number
+  onViewTasks: (nodeId: string) => void
 }) {
   const children = tree.get(node.id) ?? []
   const nodeMembers = members.get(node.id) ?? []
@@ -37,6 +38,7 @@ function OrgTreeNode({
         <span>{node.name}</span>
         {node.leaderId ? <span className={css.leader}>leader: {node.leaderId}</span> : null}
         {node.domain ? <span className={css.domain}>— {node.domain}</span> : null}
+        <button className={css.smallButton} onClick={() => onViewTasks(node.id)}>任务</button>
       </div>
       {nodeMembers.length > 0 ? (
         <div className={css.members} style={{ paddingLeft: depth * 16 + 16 }}>
@@ -44,20 +46,37 @@ function OrgTreeNode({
         </div>
       ) : null}
       {children.map(child => (
-        <OrgTreeNode key={child.id} node={child} tree={tree} members={members} depth={depth + 1} />
+        <OrgTreeNode key={child.id} node={child} tree={tree} members={members} depth={depth + 1} onViewTasks={onViewTasks} />
       ))}
     </div>
   )
 }
 
 /** The org-chart view tab body. */
-export function OrgChartView({ foremanUrl, listOrg, assignTask }: ConvViewProps & InjectFace<OrgChartInjected> & PropsLocale<'foreman'>) {
+export function OrgChartView({ getConnection, saveConnection, listOrg, assignTask, listNodeTasks, rejectTask }: ConvViewProps & InjectFace<OrgChartInjected> & PropsLocale<'foreman'>) {
+  const initial = getConnection()
   const [org, setOrg] = useState<OrgData>(EMPTY_ORG)
   const [loading, setLoading] = useState(true)
+  const [configOpen, setConfigOpen] = useState(false)
+  const [urlInput, setUrlInput] = useState(initial.url)
+  const [tokenInput, setTokenInput] = useState(initial.token)
   const [taskId, setTaskId] = useState('')
   const [description, setDescription] = useState('')
   const [assignee, setAssignee] = useState('')
   const [message, setMessage] = useState('')
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const [nodeTasks, setNodeTasks] = useState<TaskSummary[]>([])
+
+  async function reload(): Promise<void> {
+    setLoading(true)
+    try {
+      setOrg(await listOrg())
+    } catch {
+      setOrg(EMPTY_ORG)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -73,7 +92,41 @@ export function OrgChartView({ foremanUrl, listOrg, assignTask }: ConvViewProps 
   const members = membersByNode(org)
   const allMembers = [...new Set(org.memberships.map(m => m.userId))]
 
+  async function handleSaveConnection(): Promise<void> {
+    setMessage('')
+    try {
+      await saveConnection(urlInput, tokenInput)
+      setConfigOpen(false)
+      await reload()
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleViewTasks(nodeId: string): Promise<void> {
+    setMessage('')
+    setSelectedNode(nodeId)
+    try {
+      setNodeTasks(await listNodeTasks(nodeId))
+    } catch (e) {
+      setNodeTasks([])
+      setMessage(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function handleReject(taskId: string): Promise<void> {
+    setMessage('')
+    try {
+      await rejectTask(taskId)
+      /* v8 ignore next -- the task panel only renders when selectedNode is set */
+      if (selectedNode) setNodeTasks(await listNodeTasks(selectedNode))
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e))
+    }
+  }
+
   async function handleAssign(): Promise<void> {
+    /* v8 ignore next -- the submit button is disabled until all fields are set */
     if (!taskId || !description || !assignee) return
     setMessage('')
     try {
@@ -88,16 +141,60 @@ export function OrgChartView({ foremanUrl, listOrg, assignTask }: ConvViewProps 
 
   return (
     <div className={css.root}>
-      <h2 className={css.heading}>组织架构</h2>
+      <div className={css.headingRow}>
+        <h2 className={css.heading}>组织架构</h2>
+        <button className={css.button} onClick={() => setConfigOpen(v => !v)}>
+          {configOpen ? '收起配置' : '连接配置'}
+        </button>
+      </div>
+
+      {configOpen ? (
+        <form
+          className={css.form}
+          onSubmit={(e) => { e.preventDefault(); void handleSaveConnection() }}
+        >
+          <input
+            className={css.input}
+            value={urlInput}
+            placeholder="服务器地址（http://host:8787/rpc）"
+            onChange={e => setUrlInput(e.target.value)}
+          />
+          <input
+            className={css.input}
+            value={tokenInput}
+            placeholder="token（可空）"
+            onChange={e => setTokenInput(e.target.value)}
+          />
+          <button type="submit" className={css.button}>保存并连接</button>
+        </form>
+      ) : null}
+
       {loading ? (
         <p className={css.empty}>加载中…</p>
       ) : org.nodes.length === 0 ? (
-        <p className={css.empty}>未连接到 Foreman 服务端（{foremanUrl}）</p>
+        <p className={css.empty}>未连接到 Foreman 服务端，请点「连接配置」设置服务器地址</p>
       ) : (
         <>
           {rootNodes(org.nodes).map(node => (
-            <OrgTreeNode key={node.id} node={node} tree={tree} members={members} depth={0} />
+            <OrgTreeNode key={node.id} node={node} tree={tree} members={members} depth={0} onViewTasks={handleViewTasks} />
           ))}
+
+          {selectedNode ? (
+            <div className={css.taskPanel}>
+              <h3 className={css.taskHeading}>节点任务（{selectedNode}）</h3>
+              {nodeTasks.length === 0 ? (
+                <p className={css.empty}>无任务</p>
+              ) : (
+                nodeTasks.map(t => (
+                  <div key={t.id} className={css.taskRow}>
+                    <span>{t.id} — {t.description}（{t.state}）</span>
+                    <button className={css.smallButton} onClick={() => void handleReject(t.id)}>驳回</button>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : null}
+
           <form
             className={css.form}
             onSubmit={(e) => { e.preventDefault(); void handleAssign() }}
@@ -126,9 +223,9 @@ export function OrgChartView({ foremanUrl, listOrg, assignTask }: ConvViewProps 
               下发任务
             </button>
           </form>
-          {message ? <p className={css.message}>{message}</p> : null}
         </>
       )}
+      {message ? <p className={css.message}>{message}</p> : null}
     </div>
   )
 }
