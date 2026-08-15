@@ -5,7 +5,8 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { stubSettingsScope } from '@deepseek-ai/dsh-client-test-runtime'
 import { apply, inject } from '@deepseek-ai/dsh-client-ui-foreman/client'
-import type { ForemanSettings, OrgChartInjected, OrgData } from '@deepseek-ai/dsh-client-ui-foreman/client'
+import type { OrgChartInjected, OrgData } from '@deepseek-ai/dsh-client-ui-foreman/client'
+import type { ForemanSettings } from '../src/foreman-settings.ts'
 
 async function bench() {
   const ctx = new Context()
