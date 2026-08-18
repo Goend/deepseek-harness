@@ -35,7 +35,7 @@ type Props = ComponentProps<typeof OrgChartView>
 
 function props(overrides: Partial<Props> = {}): Props {
   const base = {
-    useStore: ((selector: <S>(state: ForemanViewState) => S) => selector(STORE_STATE)) as Props['useStore'],
+    useStore: ((selector: (state: ForemanViewState) => unknown) => selector(STORE_STATE)) as unknown as Props['useStore'],
     actions: { setConnection: vi.fn() },
     getConnection: () => CONNECTION,
     saveConnection: vi.fn().mockResolvedValue(undefined),
@@ -87,7 +87,7 @@ describe('OrgChartView', () => {
     const whoami = vi.fn()
     const listMyTasks = vi.fn()
     render(<OrgChartView {...props({
-      useStore: ((selector: <S>(state: ForemanViewState) => S) => selector(emptyState)) as Props['useStore'],
+      useStore: ((selector: (state: ForemanViewState) => unknown) => selector(emptyState)) as unknown as Props['useStore'],
       whoami,
       listMyTasks,
     })} />)
