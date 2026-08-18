@@ -84,10 +84,241 @@
   cursor: pointer;
 }
 
+
+
+.subTabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.subTab,
+.subTabActive {
+  font: inherit;
+  font-size: 13px;
+  padding: 3px 10px;
+  border: 1px solid var(--dsw-alias-border-l2, #ccc);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary, #666);
+  cursor: pointer;
+}
+
+.subTabActive {
+  background: var(--dsw-alias-button-primary-fill, #3964fe);
+  border-color: var(--dsw-alias-button-primary-fill, #3964fe);
+  color: var(--dsw-alias-label-primary-foreground, #fff);
+}
+
+.jira {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.issue {
+  margin-top: 10px;
+}
+
+.issueTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.issueStatus {
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #666);
+}
+
+.issueMeta {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-secondary, #666);
+  font-size: 12px;
+}
+
+.attachments,
+.transitions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.jiraLink {
+  color: var(--dsw-alias-state-business-primary, #3964fe);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.jiraLink:hover {
+  text-decoration: underline;
+}
+
+.identity {
+  color: var(--dsw-alias-label-secondary, #666);
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.connectionHint {
+  margin: 8px 0;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.04));
+  color: var(--dsw-alias-label-secondary, #666);
+  font-size: 12px;
+}
+
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--dsw-alias-label-secondary, #666);
+}
+
+.jiraCreateFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.textarea {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--dsw-alias-border-l2, #ccc);
+  border-radius: 4px;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.taskHeadingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.taskText {
+  min-width: 0;
+  flex: 1;
+}
+
+.taskBrief {
+  margin: 4px 0 0;
+  color: var(--dsw-alias-label-secondary, #666);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.taskItem {
+  min-width: 0;
+}
+
+.taskSummaryRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.taskSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary, #0f1115);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.taskSummary:hover {
+  color: var(--dsw-alias-state-business-primary, #3964fe);
+}
+
+.taskSummaryToggle {
+  flex: none;
+  width: 12px;
+  color: var(--dsw-alias-label-tertiary, #888);
+}
+
+
+.workspaces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.workspacesLabel {
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary, #666);
+}
+
+.workspaceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 480px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-2, #f5f6f7);
+  color: var(--dsw-alias-label-secondary, #666);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspaceRemove {
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary, #888);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.workspaceAdd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.taskActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.taskDetails {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 0 6px 18px;
+}
+
 .taskPanel {
   margin-top: 12px;
   padding: 8px;
-  border: 1px solid var(--dsw-color-border, #ccc);
+  border: 1px solid var(--dsw-alias-border-l2, #ccc);
   border-radius: 4px;
 }
 

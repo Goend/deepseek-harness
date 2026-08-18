@@ -3,6 +3,15 @@
 /** Settings namespace for the Foreman server connection. */
 export const FOREMAN_SETTINGS_NAMESPACE = 'foreman'
 
+/** Default Foreman JSON-RPC endpoint. */
+export const DEFAULT_FOREMAN_URL = 'http://127.0.0.1:8787/rpc'
+
+/** One Foreman connection: the server endpoint plus the identity token. */
+export interface ForemanConnection {
+  readonly url: string
+  readonly token: string
+}
+
 /** The Foreman connection settings a browser panel reads. */
 export interface ForemanSettings {
   /** Foreman JSON-RPC server URL. */
